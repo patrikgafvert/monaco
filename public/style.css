@@ -1,0 +1,12 @@
+body { background: #1e1e1e; color: #d4d4d4; font-family: sans-serif; }
+#editor { min-height: 80vh; border-radius: 4px; }
+#fileList { max-height: 85vh; overflow-y: auto; cursor: pointer; }
+#fileList .list-group-item { 
+    font-size: 0.85rem; 
+    border-bottom: 1px solid rgba(255,255,255,0.05); 
+    background: transparent; 
+    color: #ccc; 
+}
+#fileList .list-group-item:hover { background: rgba(255,255,255,0.1); }
+.active-file { background: #264f78 !important; color: white !important; }
+#saveStatus { font-size: 0.9rem; margin-right: 15px; font-weight: bold; }

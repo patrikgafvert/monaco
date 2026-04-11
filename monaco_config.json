@@ -1,0 +1,27 @@
+{
+    "theme": "vs-dark",
+    "fontSize": 14,
+    "fontFamily": "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+    "fontLigatures": true,
+    "minimap": {
+        "enabled": false
+    },
+    "automaticLayout": true,
+    "scrollBeyondLastLine": false,
+    "wordWrap": "on",
+    "lineNumbers": "on",
+    "renderWhitespace": "selection",
+    "tabSize": 2,
+    "cursorBlinking": "smooth",
+    "cursorSmoothCaretAnimation": "on",
+    "smoothScrolling": true,
+    "roundedSelection": true,
+    "scrollbar": {
+        "vertical": "hidden",
+        "horizontal": "hidden"
+    },
+    "padding": {
+        "top": 10,
+        "bottom": 10
+    }
+}

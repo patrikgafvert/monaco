@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="sv" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <title>HA-Editor</title>
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #1e1e1e; color: #d4d4d4; }
+        #editor { height: 80vh; border: 1px solid #333; }
+        #fileList { max-height: 80vh; overflow-y: auto; }
+        .pointer { cursor: pointer; }
+        .list-group-item { background: transparent; color: #ccc; border-color: #333; font-size: 0.9rem; }
+        .list-group-item:hover { background: #2a2d2e; }
+        .active-file { background: #264f78 !important; color: white !important; }
+        #saveStatus { font-size: 0.8rem; margin-right: 1rem; }
+    </style>
+</head>
+<body>
+    <header class="p-2 mb-3 border-bottom bg-dark d-flex justify-content-between align-items-center">
+        <h1 class="h6 m-0">HA-EDITOR</h1>
+        <div>
+            <span id="saveStatus"></span>
+            <button id="saveBtn" class="btn btn-sm btn-success px-4" onclick="EditorApp.saveFile()" disabled>Spara</button>
+            <button class="btn btn-sm btn-outline-info me-2" onclick="EditorApp.loadConfig()">⚙️</button>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row g-2">
+            <div class="col-md-9">
+                <div id="editorTitle" class="p-1 small text-info">Välj en fil...</div>
+                <div id="editor"></div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-1 small text-muted">Mapp: <span id="currentFolder">/</span></div>
+                <div id="fileList" class="list-group"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="jquery/jquery.min.js"></script>
+    <script src="monaco/loader.js"></script>
+    <script src="script.js"></script>
+    <script>$(document).ready(() => EditorApp.init(<%- config %>));</script>
+</body>
+</html>

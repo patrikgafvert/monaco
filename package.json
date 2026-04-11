@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "bootstrap": "*",
+    "ejs": "*",
+    "express": "*",
+    "jquery": "*",
+    "monaco-editor": "*"
+  }
+}
+
