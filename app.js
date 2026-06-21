@@ -2,7 +2,8 @@
 const express = require('express'), 
       fs = require('fs/promises'), 
       path = require('path'), 
-      app = express();
+      app = express(),
+      monacoVersion = require('monaco-editor/package.json').version;
 
 const CONFIG_FILE = 'monaco_config.json';
 const DEFAULT_FOLDER = path.join(__dirname, 'configFolder');
@@ -34,7 +35,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', async (req, res) => {
     await loadConfig();
-    res.render('index', { config: JSON.stringify(editorConfig) });
+    res.render('index', { config: JSON.stringify(editorConfig), monacoVersion });
 });
 
 app.post('/api/list', async (req, res) => {
