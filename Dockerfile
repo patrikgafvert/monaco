@@ -1,5 +1,5 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
+FROM ${BUILD_FROM}
 RUN apk add --no-cache nodejs npm
 WORKDIR /usr/src/app
 COPY package.json ./
