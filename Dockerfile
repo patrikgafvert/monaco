@@ -7,7 +7,6 @@ RUN npm install --production
 COPY ./app.js ./
 COPY ./welcome.txt ./
 COPY ./monaco_config.json ./
-COPY ./public/style.css ./public/style.css
 COPY ./public/script.js ./public/script.js
 COPY ./views/index.ejs ./views/index.ejs
 CMD ["node", "app.js"]
