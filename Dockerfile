@@ -10,5 +10,5 @@ COPY ./monaco_config.json ./
 COPY ./public/style.css ./public/style.css
 COPY ./public/script.js ./public/script.js
 COPY ./views/index.ejs ./views/index.ejs
-CMD [ "node", "app.js" ]
+CMD ["node", "app.js"]
 

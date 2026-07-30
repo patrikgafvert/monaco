@@ -11,7 +11,8 @@ const EditorApp = {
             });
             this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                 this.saveFile();
-            });            this.getFiles("home");
+            });
+            this.getFiles("home");
         });
     },
 
@@ -36,7 +37,7 @@ const EditorApp = {
         this.apiCall("api/list", { path: target }, (data) => {
             this.currentFolder = data.currentFolder;
             $("#currentFolder").text(this.currentFolder);
-            
+
             const $list = $('#fileList').empty();
             $list.append('<div class="list-group-item text-warning pointer" onclick="EditorApp.getFiles(\'home\')">📁 HOME</div>');
 
@@ -82,16 +83,16 @@ const EditorApp = {
 
     saveFile: function() {
         if (!this.currentFile) return;
-        
+
         const content = this.editor.getValue();
-        
+
         if (this.currentFile === "monaco_config.json") {
             try {
                 const newConfig = JSON.parse(content);
                 this.editor.updateOptions(newConfig);
             } catch (e) {
                 this.showStatus("Fel: Ogiltig JSON-syntax. Kan inte spara.", "#ff4444", true);
-                return; 
+                return;
             }
         }
 
