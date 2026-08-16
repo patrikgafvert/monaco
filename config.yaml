@@ -1,6 +1,6 @@
 name: "New Monaco Editor"
 description: "Monaco Editor from Microsoft"
-version: 1.0.4
+version: 1.0.5
 slug: new_monaco_editor
 arch:
   - aarch64
@@ -8,9 +8,12 @@ arch:
 init: false
 ingress: true
 ingress_port: 8099
-panel_icon: mdi:code-braces
+panel_icon: mdi:file-document-edit
 panel_title: Monaco Editor
 map:
   - type: homeassistant_config
     read_only: false
     path: /usr/src/app/configFolder
+  - type: addons
+    read_only: false
+    path: /usr/src/app/configFolder/addons
