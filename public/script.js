@@ -65,7 +65,10 @@ const EditorApp = {
             $(`[data-path="${p}"]`).addClass("active-file");
 
             const ext = name.split('.').pop().toLowerCase();
-            const langMap = { 'py':'python', 'yaml':'yaml', 'yml':'yaml', 'js':'javascript', 'json':'json' };
+            const langMap = {
+                'py':'python', 'yaml':'yaml', 'yml':'yaml', 'js':'javascript',
+                'json':'json', 'html':'html', 'css':'css', 'txt':'plaintext', 'conf':'plaintext'
+            };
             monaco.editor.setModelLanguage(this.editor.getModel(), langMap[ext] || 'plaintext');
         });
     },

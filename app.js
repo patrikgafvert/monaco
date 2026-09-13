@@ -55,11 +55,7 @@ app.post('/api/list', async (req, res) => {
         const entries = await fs.promises.readdir(targetDir, { withFileTypes: true });
 
         const folders = entries.filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name).sort();
-        const allowedExtensions = editorConfig.supported_extensions || [];
-        const files = entries.filter(e => {
-            const ext = path.extname(e.name).toLowerCase();
-            return !e.isDirectory() && allowedExtensions.includes(ext) && e.name !== CONFIG_FILE;
-        }).map(e => e.name).sort();
+        const files = entries.filter(e => !e.isDirectory() && e.name !== CONFIG_FILE).map(e => e.name).sort();
 
         res.json({ currentFolder: targetDir, folders, files });
     } catch (err) {
