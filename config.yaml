@@ -14,6 +14,6 @@ map:
   - type: homeassistant_config
     read_only: false
     path: /usr/src/app/configFolder
-  - type: addons
+  - type: local_apps
     read_only: false
     path: /usr/src/app/configFolder/addons
