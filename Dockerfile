@@ -1,13 +1,119 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
 FROM ${BUILD_FROM}
-RUN apk add --no-cache nodejs npm
-WORKDIR /usr/src/app
-COPY package.json ./
-RUN npm install --production
-COPY ./app.js ./
-COPY ./welcome.txt ./
-COPY ./monaco_config.json ./
-COPY ./public/script.js ./public/script.js
-COPY ./views/index.ejs ./views/index.ejs
-CMD ["node", "app.js"]
 
+# xz behövs för att packa upp de inbäddade filerna
+RUN apk add --no-cache nodejs npm xz
+
+WORKDIR /usr/src/app
+
+# Katalogerna måste finnas innan filerna skrivs ut
+RUN mkdir -p /usr/src/app/public /usr/src/app/views
+
+# ---- package.json ----
+RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/package.json
+/Td6WFoAAATm1rRGBMBZggEhARwAAAAAAAAAALbuHIzgAIEAUV0APYKAFxwpjcmEhvjI2b+ecVMx
+iblySubP835BrYUQ8sceI3bkUQElXY/zxLgypcxPb3AWxlr2SpfSohUM+c3Fylr2tsxu5j6FxO6M
+qBhZfswJAAAAAKNevqnzawi0AAF1ggEAAAA4zCDrscRn+wIAAAAABFla
+EOF
+
+# ---- app.js ----
+RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/app.js
+/Td6WFoAAATm1rRGBMCCCYoZIQEcAAAAAAAAALWIxZrgDIkEel0AE51KZmSS9VkoYT8Ise/WDlhw
+UUNRSFCSLwXkzWKrL7UqXwkIehMMR55HTdwJFT2JlCcYX3+jz38HdjXBsmTYgWStCNjfXSCrLx6J
+GvRNB3IYN1kbGZTHdzWTxxCOGK5YVgQk6oYhf12f6rNtvqQmmkbnCigNEu8ugSn/UKG3bDe4tKmz
+ppCTv9g61mu4IN9OInzxucoWt5e7pTb/rQaZEmeLHwzzvgt7Lk4Sh2MG101CkvARdjAcbfl/5D7a
+Ms72MArDjjGO+av0Ln5CWj2XtsI1D/EPfeLHES2Pcortsgzw/JEPningjEq5/tcDnIbLW+FUHmDB
+9RIALwWtpdkUwjxpSs+4Zih2R66B0B3GDkuIP0qQKw3J446H+MyqSiL+NgtdOMIcOAYk9Q6X6SsC
+nAkNytTPwt1I5BBzmiRd/k7QUs8j/z0pPxNMmfgStjZvZ3pl8d7BBJFtPl+q2GtlCmu+0khFz1yH
+KWTHVL7d3mExvjFjXgUIMjD0vrL3Ti0m5ZKTNA9uuqFfBJKU/+wjQP+XkBV0JG0iKxX7jU7+MEI9
+wjCLgVWILuVJxC7Vq50wp3vRjMlFYZ32hriMjFlGH55FgYGwWAMhQjx7n6Vu7hTGqvD0GBNv3qme
+unA2o6o6YGMAh49pKOKuWUnuOWmhs+z6d6p08sDHdtGBqNSodFZ3I6dhmpDvlU/6VzNuM54k8ABY
+0ol4SlU1W2l9t/o6EHohb57/ZpwD3czldsI5MZVBjCF9D+5mMxYV/oGSGf67pHrP7sqdQDlj3tYB
+s2mWjqa4jHXzznDS9UpKb1j1uihO+9jsBndbt8qnXBzbL7UrawWfkBCoVZuDETtVKVddixyoKPBD
+CPWaA/HOSYgl9DmvOmWFPH+wWqgXVAmZOgmr1PFsOx+0WyZrcOA5TrGx1ldmwUo7uMJ8NQkZhxJx
+nseYh9KHrWzePto9qScF8XLDDRsKmSXh+otzUXNzWSMb2vdcSmXRapNPrP/OzjLhMhToLJfSsHOK
+beS33/83Gpd/vJ+o87BS7VpeyFGyBL6XIPB9Wi9YP4uM6KRgnlHTdCO4exY6D5ps+7SmrmbNi/F2
+jUPveF91ZhPsrtPR9TwMEbvhoQwgSBzNGsXNdXOu0lnquO8V549V6w1zNRVE9Y2NApTc2zK2Y5n8
+uxP7syfwCjmxx4e3CoJuw5fx3i/54FxRF2BmOtrkNi/VRfnqHQAU7aLPYnMEZju9U4YZVJgNSeOJ
+UVXuht7Y6u3Xq7p0iZzTFbDY+cWr78kLPmCN+eDZ2MJb6DFyBZGjrQT3XWdorZOBlAl5oVmYhQdY
+XuExxAWzK53L5YLjsulC3T/mp8O/R32OM0/QzYX+buhz8LHEc9I2hIHkbItE6c9MkX9vQ16SF/+d
+GR/wdFVn5fC4DmoJ+JxBY6L5p1wWkIehXOnpj0LqBfsN1tWIB2Ud48x9xxgqu7CEDHLYMeIxHwk+
+CQZrgvCtZ5ylbuBwO9ZAR8x6fstwx/30x4Xq92Rz4sLVeSpilASnNltiHEoAAAAAnkz/9h/wJOEA
+AZ4JihkAAD8POnixxGf7AgAAAAAEWVo=
+EOF
+
+# ---- welcome.txt ----
+RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/welcome.txt
+/Td6WFoAAATm1rRGBMDIAeIFIQEcAAAAAAAAAEg6+tngAuEAwF0AEBfsQakg1yfrkIG4eAkW5Xvp
+N/C6dZWqcK+sNRmUN7RkqUp3iGkVElUZpfGsgZTFUzgPoSSzYK0oOaw41xKervfNmCQNFEVig+tD
+kpVbY8mKgM1J+ijb3znDg8FfWd+uhe0aYf7oqRaqaFAHKHC04UH0f7Mp13s6TO4C/ane+Nx0tdQn
+8o1OgzzHp4MItnRHfrcrwsSxrUN60Ohyy1eiCk2dJHH8u1p9qvL9dmHGL6l4KMxb0VfqTbBeapkF
+7B0fAODne1gqBhioAAHkAeIFAACh710JscRn+wIAAAAABFla
+EOF
+
+# ---- monaco_config.json ----
+RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/monaco_config.json
+/Td6WFoAAATm1rRGBMDXApAFIQEcAAAAAAAAAHfBZ5zgAo8BT10APYKAGRubGMiGhU+Tbsdn5Yg+
+eh1e0TOFmgdvoXuTOohKBHidagITwyNntKniWM/r/SlVksTAHiY+AYIL1/avzl3fJ3OSPm/55Uu8
+tydzP0xDU1IiC4ZB6cDkVdhIxdsVDeIm/OLDixBsMtSMu0RyJtZ/GjHjHUbnvAuiMxoWAVuJaFI4
+PYzwHF0rEBEDJPIgMED7H9AzbS5c6HsI+PTKy4TgZtSng5WtuRSOY5rZGHCiauQbBwtexP/fN+kj
+SCKq00XTJTdKQlKoHzBGAPFgQa4ctytvUKlkdYZ0rdHHUuNT54rIMSV2A9zmkLu8bYKDnedBZhq3
+3SoNIF4xI0Y0mDueqN2UIaXsFsy7eyipxy2hlwL2SUX2MEmcZaA93UoIrEP8622skwLY5rM+vvyK
+oY4uEnxqKk86dIXDyJSrHPRoePxH3YkF7fzfAOrdLAAAAFfplc/a4c4pAAHzApAFAABFzxiRscRn
++wIAAAAABFla
+EOF
+
+# ---- public/script.js ----
+RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/public/script.js
+/Td6WFoAAATm1rRGBMDwCuogIQEcAAAAAAAAAAKKe1fgEGkFaF0AMZvKGcY2FymtHk6TpseBuW+e
+ZZGRpZSgAeKukgAI6E9s2ddV0u+RNnlFgDRzMN1iPGkCAbe01IOV/9DOkfBWOQTdSsh1D0vycrs9
+fz10c0QKxEFVMTI1rr85Ya68lGmN+rY84jVRCFZ8VIcW2Synb4Nb6C1kqVFo5qU7LnyO9NygHsZc
+oPv+V+u/YcoffAqb/W10ffPHOXtiAfrj4V6BGk6bzuLoT+rszTuXGXoXFxH44C5s/tN5U1bysI4E
+yJ1A2tKhmd3q9/eJXP8K44R5dEpB2fGchF2wJip1c/T2a8oGQST/Qi4DKmJNzUnWsfVowI+DAw32
+5HxT//66E+MDYUgrYywPnob1BrSjkKwfJc8QYCnNAUkcPAVF5YoWSnwLzx/bQwREHjBWJhsuE4Dm
+F6tG/8sK4lNyxSAu669tifrbISESQX+RUB+p3HG7tOH5W1j/+CAk5kZbQjBtVR0ZsTj1HbP2V8Xc
+J5elwg6ja5IoY4TzVZ4ONlmriZlTylIVTmI8M0OfIX4JVWKDxkZOfp+4JCtZ4aGF9FSM3bSRG+wq
+bIjY4/OxEyO5jjFGHZUj14semnykW1FzVTtctt3q2K1Ri9jinUa1secDgcGQCEgBgUao3X+QbnAU
+vtIWJteEEWMsHuoqJTDP/az/tIUfNQRbo+8lPgbkkeQzvWwEqcTnoYFPPpKtN6pPsMKq+CDV/zQd
+uDfffl3Ij0+880+2K589ihy3miRvOGbf+tNLafYF+dxHmepRyriPs7qf4pgWP+riBVTyBfPNPKXO
+2YbKAVliNeg9BEUmHCgbj/V9r4CJOCXZWr68VorDXMvhm3SL+vYpNoZfS25KvzwW2tJehkXXNNkD
+C3Z6NbW9Yy/DV8rd1olyNYKdiazoz7PjcnGWYW2kxd7V2Jrc4LhCXjxWEC3e6DMmqSfev3q1O+Or
+GHQAMGlz0dN45+vTzcVDw9Lx7miD+g9zcJMEj8cdqw5tgmhbUsS7Q280sMa6mvIg/UYz9V0pbquS
+4tK06hwIOmiylEqEE4WevUKY5NiMnu6g/uRzHbAt3xPMWMxS0iiCc3ZBmRaRBAeur1M8SqeKVTfY
+znhh6U7hV7Gmg3KIAOF7+RUP/+VLv6KdDl+8kte3IaLNIxk3fUyly9Jd9IfnYJyYs2I1E3V1RGrx
+PKwIYZ+hLW3IAWUW5MWZCKWtpdIFo2/hejLHcnITOVwN55Z0AXGS0dBN/RPYQ7nN5lSbnZ/fQvRd
+RmCIEnt6XJ95zSHrFBIGlpl80gA2TDvsJ8W3fuDxTgbzN2OCRXYeYncGyUaM09yiQ6Q5+/NV0MPc
+yK4+eXOSJdF0sEK5kPpLDkuFzdjHQVjhGEsNwQ36fQULdyhu92L0dMk91R/AGIHeWOIjkaDaOV7H
+StTXh4rytxSs9hvh9hap6jKZ9aN5NzyKijdZta0jlv4FAZ/ZkWz+++Mf1NQUKEjZNYkLjv6+3wKT
+xLoXkh6SYUjMlLCb1w4OavyfvtnwBfONPcK+jEyv9iTetdIlxEU0/xBiXjpz3t+RBwx+YrApX3pT
+mbUYvEKJtjrmMh75xGiWDwkXdeIIuOH87z6ivvxheJt/9uVwM2z/6R4/aLM3I8wfXrF8X5jzAW1m
+vuB64Ydn2ZduUioKKAQp2Fur66xP6G4iInNwcrsQekU0DqcteY9AJP88gPevSgi33om+bgxQtrQm
+83q4cFajq5JcgvrZT5u4aITruWIAZvv1NWCOABHwYQqu9Z46GEAUs7Gc5F9QnJWqmI8BYhbNjqxj
+9wqS3m3nMSqIWkTj8SvyNuPWBu2PwLidTnKM7RzGb1MT31euRWt7wR7F8Hd0G8iOuBQdHvQAAADW
+2130skMLgAABjAvqIAAA09Z4XLHEZ/sCAAAAAARZWg==
+EOF
+
+# ---- views/index.ejs ----
+RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/views/index.ejs
+/Td6WFoAAATm1rRGBMDpBqsPIQEcAAAAAAAAAFtwh7vgB6oDYV0AHghFBtDvqCgXWdmp9eqnJT7F
+bAPcQK4xKPr+8IwT4KYLAzf5QltbreNjKsl3Feh19oVRPE/sfTzpeJpC3MTtF74xG36LMNr7aZt5
+85scpPTWK1Tf6WsvTs9fvUOP8KxB9L5tD+UK75OpmMidXsh9vjTBU39wI2XxPursQdlftiapn7D0
+0aKNShwv4WHAGQ+2nrZcbAms1AzjLwOKVp4xgeSo+hUbw9h1ybhcQZpFiG3hj9r5nDYf2tuJK2iR
+TYkxs9dLt9q2lnCAezdxWKjDYy1GiEXAlZh9ut7UJmVS3QuLSnYLQuxgR2hjo1PcKLM/eqeGr2Vt
+CnMH5E0M0n1nztryyY4yv++mUai58LqgDFgF1U8E15jccoGu07lpd+SkgdiKI9d30u2tKuxoFAuw
+/qrEA7RMFdZCN2IkeOosMX8DMOjpKHANtEGQFxcYx8uV9+hxJN6MgX2g44ASvhgVA6yt7O6H6mvo
+BGCfFAzUvLzB6J8jzzx95Ip0DKF3bBYIEaqamUn+7mgMt5RY7nSSKcBXAp8YKi/t/NnUSM0bwBt7
+T/A9MxjrruBTSHMw4ezrBS5URpde2R2NTMx7QIKkZGQoZ9C+O1snph9naTboQ27cjUSy8capvIuc
+6LeUcpnOo9nFPhA9ENySOP2IqK1aIwm4decC4D8Z/eMrvHhPRoEmUpHcU5llsGTfc1AYGlQBig+l
+QTMlvOhpe2+sVy1qANHq40UaCLgG+OHpK7oDyO/r4isxA1r/P80VcHFNpm+1yvLlrXu8cbrvOkyD
+B5ot5OCS4uIeDQEA4DrXamjJEoaE39HqobJ5TFOQwWTgw3jaSsvCIcPhJ5hPdvlMy/qHyL6Vh5wM
+M4DeD8Gf6cvpsT5LXNMXkC+s0t7MlXa1SjWO07KrV+6qUA6RnO3yux9EI7D721IFMOBrfvdfQ7Iz
+9t23YQeVTvk1cY0u52OLfmj6oKEeWMW8o0LeXtOcmW1ulB9tYaAz436zHa7qdDgxsG2M1SouaQhU
+NKHzWWPH7ZS5S9gjXGm5nqev1CoopmbXN40s2DGviFmmCs/eT0GqPoxO26NLP5eojSJTomvfhacP
+bCBvQ2ZTRua1cNrHXxv1cvmxpUpP7jBClI1sAlHvjR7RydmHc1TMblLVgkEixdSNNAAAAAB/OfwX
+5FDBYAABhQerDwAAn1Q+rrHEZ/sCAAAAAARZWg==
+EOF
+
+RUN npm install --omit=dev && npm cache clean --force
+
+CMD ["node", "app.js"]
