@@ -10,13 +10,13 @@ WORKDIR /usr/src/app
 RUN mkdir -p /usr/src/app/public /usr/src/app/views
 
 # ---- package.json ----
-RUN <<EOF base64 -d | zcat > /usr/src/app/package.json
+RUN << "EOF" base64 -d | zcat > /usr/src/app/package.json
 H4sIAAAAAAAC/1XJQQqAIBBG4b2nkFlGXaDbmP4LhRxzDIrw7g24cvm+9xlrKaAgB2QfIbTbT031
 YG7SqitKtNA6FEnmfkqFzJauG/Wd6OTsPG8IsXEdR0c33fxYfzTYggAAAA==
 EOF
 
 # ---- app.js ----
-RUN <<EOF base64 -d | zcat > /usr/src/app/app.js
+RUN << "EOF" base64 -d | zcat > /usr/src/app/app.js
 H4sIAAAAAAAC/51W4W7bNhD+n6eggaGkMIfOgBVoHWRD0cRbuyAZlq77MQwuI51jupKokpQTL/XP
 vcV+dq+wF8ib7El2J0q27Dr2ZvuHJB7v+N13H4/kpQPmvNWx58cHscmdZ3BXWHCOnTALH0ptQfB6
 iEfNnNGKedSyFMqP2zb6XlpVUaCxDidwuB7PTK5i8xas0ybHGa+vLi9koawDccDwN3LSgkoGOoWr
@@ -41,7 +41,7 @@ qEK7z8tqHSEC6fP6MKOuDLl4dvT8OSI/ktUfKxWmEbUmBZmaG8GvwOJ9GoElhhUPfzG6ojJyrG4F
 EOF
 
 # ---- welcome.txt ----
-RUN <<EOF base64 -d | zcat > /usr/src/app/welcome.txt
+RUN << "EOF" base64 -d | zcat > /usr/src/app/welcome.txt
 H4sIAAAAAAAC/42RSw7DIAxE95xidk2lSr5NVpacg/jwHYMDpClVMRKDYcznwQzZhsJQ61agjNqE
 EX7anJFyDFE6dR0Lqlc0ncIt2qyU5meGiYfhaLrlaOVkB3s4PQpKtTq2doHNnpkYEbvCCjVhR5Nx
 lMdxTdaBa57psVRWn2CrlXD3L1hvmh77u1I+a3kRnR5QJqD2D8rkmcdBBReK6OhwwTo9jZdUOQF2
@@ -49,7 +49,7 @@ ckntuIEdLnR2V2ib3ZmerqjjX3jF/PWJs7wBHzvn6OICAAA=
 EOF
 
 # ---- monaco_config.json ----
-RUN <<EOF base64 -d | zcat > /usr/src/app/monaco_config.json
+RUN << "EOF" base64 -d | zcat > /usr/src/app/monaco_config.json
 H4sIAAAAAAAC/21RMY7CMBDseUWUhoaTDnTVdUckKkSTgnoTL8TC9qL1GgSIv5/jBC6WzuXMzszu
 +DEr4iulQ4vld1Fe/IcCPpWLAT+Qk1rfe2r5NcE2YLW59YL5RjMUFSmcL4p5Bb4Fpd9ARc6TAd9T
 FFgjFzu8RsKSI3+GFqdJW30ECYw+GgsHHCmrnbZwjuAjAQlEB41BFcEDGI+JeI4CCEIWRLdbuFGQ
@@ -59,7 +59,7 @@ UvjKSmxHrO/xtzI+6/8MSg2bTEyF+j6XnxOnhiR+VEIH/ez5C1Qv46qQAgAA
 EOF
 
 # ---- public/script.js ----
-RUN <<EOF base64 -d | zcat > /usr/src/app/public/script.js
+RUN << "EOF" base64 -d | zcat > /usr/src/app/public/script.js
 H4sIAAAAAAAC/8VXzW7jNhC+5ylYxYAo1JF92L144xRdI4tuN9kUSNDL7qJmJcpWliJVkkpieH1o
 0TfoA/TSN+kL9RE6Q8m2/pwULdrqYJnkcPjNzDfDUaSkseQ8Tq3SX+Y5mZL1EYGHu5kJkYUQQzcT
 FVpzaV+lgvdNKxFzkPe84ZGbT2VqJyQpZGRTJWmkZJIugko7Ppr/UKSah+UKXZOc2aWZkDXx74w/
@@ -88,7 +88,7 @@ JpBCm8fjJBmPe/Jmx9YjKIR/AupoIUdqEAAA
 EOF
 
 # ---- views/index.ejs ----
-RUN <<EOF base64 -d | zcat > /usr/src/app/views/index.ejs
+RUN << "EOF" base64 -d | zcat > /usr/src/app/views/index.ejs
 H4sIAAAAAAAC/41VzY7bNhC+71NMuF3APtBa24tk45UFtGlyatACCQL0SFEji7v8UUnKayfoM/Tc
 nvsQvfdN8gJ5hZCS5f/8SBAkjWY433zzcZQ++fnXF29//+0lVF7J7CKNN5BML+bELQkUzDOaO+or
 VDgnBbMPJHohK7ILCEeq0DPgFbMO/Zw0vqS3ZPPJCy8xe20044a+LIQ3Fpbp1RxUa3qH1gmj4SpL
