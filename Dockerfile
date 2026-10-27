@@ -1,3 +1,185 @@
+# ============================================================================
+# Alla filer nedan är inbäddade i imagen: källfilerna är raderade ur det här
+# repot (commit e1598ef "Lets go"), så Dockerfile är den enda källan.
+#
+# Varje fil ligger som xz-komprimerad data, base64-kodad, och packas upp av
+# heredoc-pipelinen `base64 -d | xz -d` i byggsteget.
+#
+# Blocken nedan genererades med det här skriptet:
+#
+# #!/usr/bin/env python3
+# """
+# Genererar Dockerfile: packar källfiler med xz + base64 och skriver dem
+# som heredoc-block, precis som nedan.
+#
+# Kör från projektroten:
+#
+#     # från vanliga filer i working tree
+#     python3 gen_dockerfile.py
+#
+#     # eller från git (filerna är raderade ur working tree sedan
+#     # commit "Lets go" - e1598ef - så de finns bara kvar i historiken)
+#     python3 gen_dockerfile.py --git-ref c9a94ca
+#     python3 gen_dockerfile.py --git-ref e1598ef^
+#
+# Verifiera att en befintlig Dockerfile matchar källfilerna:
+#
+#     python3 gen_dockerfile.py --check
+# """
+#
+# import argparse
+# import base64
+# import lzma  # noqa: F401  (används av --check)
+# import re
+# import subprocess
+# import sys
+#
+# # Ordning här = ordning i Dockerfile. Måste matcha /usr/src/app/.
+# FILES = [
+#     "package.json",
+#     "app.js",
+#     "welcome.txt",
+#     "monaco_config.json",
+#     "public/script.js",
+#     "views/index.ejs",
+# ]
+#
+# DEST = "/usr/src/app"
+# LINE_WIDTH = 76  # matchar `base64 -w 76`
+#
+# HEADER = """\
+# ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
+# FROM ${BUILD_FROM}
+#
+# # xz behövs för att packa upp de inbäddade filerna
+# RUN apk add --no-cache nodejs npm xz
+#
+# WORKDIR /usr/src/app
+#
+# # Katalogerna måste finnas innan filerna skrivs ut
+# RUN mkdir -p __DEST__/public __DEST__/views
+# """
+#
+# FOOTER = """
+# RUN npm install --omit=dev && npm cache clean --force
+#
+# CMD ["node", "app.js"]
+# """
+#
+# BLOCK = """\
+# # ---- {rel} ----
+# RUN <<EOF base64 -d | xz -d -T0 > {dest}/{rel}
+# {payload}
+# EOF
+# """
+#
+#
+# def read(rel, src_dir=None, git_ref=None, repo=None):
+#     """Läs en källfil från git-referens eller från disk."""
+#     if git_ref:
+#         cmd = ["git", "show", f"{git_ref}:{rel}"]
+#         if repo:
+#             cmd = ["git", "-C", repo, "show", f"{git_ref}:{rel}"]
+#         return subprocess.run(cmd, check=True, stdout=subprocess.PIPE).stdout
+#
+#     path = f"{src_dir}/{rel}" if src_dir else rel
+#     with open(path, "rb") as handle:
+#         return handle.read()
+#
+#
+# def xz(raw):
+#     """Kör `xz -9 -c --format=xz` via CLI.
+#
+#     CLI:n används avsiktligt, inte lzma-modulen: liblzma ger en något
+#     annan bitström vid identiska inställningar (blockindelning skiljer sig),
+#     så en blob packad med modulen är inte bit-identisk med en från CLI:t.
+#     """
+#     return subprocess.run(
+#         ["xz", "-9", "-c", "--format=xz"],
+#         input=raw,
+#         check=True,
+#         stdout=subprocess.PIPE,
+#     ).stdout
+#
+#
+# def pack(raw):
+#     """xz -9 -> base64, radbruten på 76 tecken."""
+#     compressed = xz(raw)
+#     encoded = base64.b64encode(compressed).decode("ascii")
+#     lines = [encoded[i:i + LINE_WIDTH] for i in range(0, len(encoded), LINE_WIDTH)]
+#     return "\n".join(lines)
+#
+#
+# def build(src_dir=None, git_ref=None, repo=None):
+#     # .format() kan inte användas på HEADER: den innehåller ${BUILD_FROM}
+#     parts = [HEADER.replace("__DEST__", DEST)]
+#     for rel in FILES:
+#         parts.append(
+#             "\n"
+#             + BLOCK.format(
+#                 rel=rel,
+#                 dest=DEST,
+#                 payload=pack(read(rel, src_dir=src_dir, git_ref=git_ref, repo=repo)),
+#             )
+#         )
+#     parts.append(FOOTER)
+#     return "".join(parts)
+#
+#
+# def check(path, src_dir=None, git_ref=None, repo=None):
+#     """Jämför varje befintligt block mot källfilen, byte för byte."""
+#     text = open(path, encoding="utf-8").read()
+#     blocks = dict(
+#         re.findall(
+#             r"RUN <<EOF base64 -d \| xz -d -T0 > " + re.escape(DEST) + r"/(\S+)\n(.*?)\nEOF\n",
+#             text,
+#             re.S,
+#         )
+#     )
+#
+#     ok = True
+#     for rel in FILES:
+#         if rel not in blocks:
+#             print(f"{rel:22} SAKNAS i {path}")
+#             ok = False
+#             continue
+#         actual = lzma.decompress(base64.b64decode(blocks[rel]))
+#         expected = read(rel, src_dir=src_dir, git_ref=git_ref, repo=repo)
+#         match = actual == expected
+#         ok = ok and match
+#         print(f"{rel:22} {'OK' if match else 'MISMATCH'}  {len(actual)}B")
+#     return ok
+#
+#
+# def main():
+#     parser = argparse.ArgumentParser(description=__doc__)
+#     parser.add_argument("--src-dir", help="mapp med källfiler (default: working tree)")
+#     parser.add_argument("--git-ref", help="git-ref att läsa filerna från, t.ex. c9a94ca")
+#     parser.add_argument("--repo", help="git-repot att köra git i (default: working tree)")
+#     parser.add_argument("--out", default="Dockerfile", help="fil att skriva")
+#     parser.add_argument("--check", action="store_true", help="verifiera istället för att skriva")
+#     args = parser.parse_args()
+#
+#     if args.check:
+#         sys.exit(0 if check(args.out, args.src_dir, args.git_ref, args.repo) else 1)
+#
+#     with open(args.out, "w", encoding="utf-8") as handle:
+#         handle.write(build(src_dir=args.src_dir, git_ref=args.git_ref, repo=args.repo))
+#     print(f"skrev {args.out} ({len(FILES)} filer)")
+#
+#
+# if __name__ == "__main__":
+#     main()
+#
+# Kör det med:
+#   python3 gen_dockerfile.py --git-ref c9a94ca   # skriv om Dockerfile
+#   python3 gen_dockerfile.py --check             # verifiera mot källfilerna
+#
+# xz CLI:t anropas via subprocess istället för lzma-modulen: liblzma ger en
+# annan bitström vid samma inställningar, så en blob packad i Python är inte
+# bit-identisk med en från CLI:t.
+# ============================================================================
+
 ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
 FROM ${BUILD_FROM}
 
