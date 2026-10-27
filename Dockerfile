@@ -1,190 +1,8 @@
-# ============================================================================
-# Alla filer nedan är inbäddade i imagen: källfilerna är raderade ur det här
-# repot (commit e1598ef "Lets go"), så Dockerfile är den enda källan.
-#
-# Varje fil ligger som xz-komprimerad data, base64-kodad, och packas upp av
-# heredoc-pipelinen `base64 -d | xz -d` i byggsteget.
-#
-# Blocken nedan genererades med det här skriptet:
-#
-# #!/usr/bin/env python3
-# """
-# Genererar Dockerfile: packar källfiler med xz + base64 och skriver dem
-# som heredoc-block, precis som nedan.
-#
-# Kör från projektroten:
-#
-#     # från vanliga filer i working tree
-#     python3 gen_dockerfile.py
-#
-#     # eller från git (filerna är raderade ur working tree sedan
-#     # commit "Lets go" - e1598ef - så de finns bara kvar i historiken)
-#     python3 gen_dockerfile.py --git-ref c9a94ca
-#     python3 gen_dockerfile.py --git-ref e1598ef^
-#
-# Verifiera att en befintlig Dockerfile matchar källfilerna:
-#
-#     python3 gen_dockerfile.py --check
-# """
-#
-# import argparse
-# import base64
-# import lzma  # noqa: F401  (används av --check)
-# import re
-# import subprocess
-# import sys
-#
-# # Ordning här = ordning i Dockerfile. Måste matcha /usr/src/app/.
-# FILES = [
-#     "package.json",
-#     "app.js",
-#     "welcome.txt",
-#     "monaco_config.json",
-#     "public/script.js",
-#     "views/index.ejs",
-# ]
-#
-# DEST = "/usr/src/app"
-# LINE_WIDTH = 76  # matchar `base64 -w 76`
-#
-# HEADER = """\
-# ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
-# FROM ${BUILD_FROM}
-#
-# # xz behövs för att packa upp de inbäddade filerna
-# RUN apk add --no-cache nodejs npm xz
-#
-# WORKDIR /usr/src/app
-#
-# # Katalogerna måste finnas innan filerna skrivs ut
-# RUN mkdir -p __DEST__/public __DEST__/views
-# """
-#
-# FOOTER = """
-# RUN npm install --omit=dev && npm cache clean --force
-#
-# CMD ["node", "app.js"]
-# """
-#
-# BLOCK = """\
-# # ---- {rel} ----
-# RUN <<EOF base64 -d | xz -d -T0 > {dest}/{rel}
-# {payload}
-# EOF
-# """
-#
-#
-# def read(rel, src_dir=None, git_ref=None, repo=None):
-#     """Läs en källfil från git-referens eller från disk."""
-#     if git_ref:
-#         cmd = ["git", "show", f"{git_ref}:{rel}"]
-#         if repo:
-#             cmd = ["git", "-C", repo, "show", f"{git_ref}:{rel}"]
-#         return subprocess.run(cmd, check=True, stdout=subprocess.PIPE).stdout
-#
-#     path = f"{src_dir}/{rel}" if src_dir else rel
-#     with open(path, "rb") as handle:
-#         return handle.read()
-#
-#
-# def xz(raw):
-#     """Kör `xz -9 -c --format=xz` via CLI.
-#
-#     CLI:n används avsiktligt, inte lzma-modulen: liblzma ger en något
-#     annan bitström vid identiska inställningar (blockindelning skiljer sig),
-#     så en blob packad med modulen är inte bit-identisk med en från CLI:t.
-#     """
-#     return subprocess.run(
-#         ["xz", "-9", "-c", "--format=xz"],
-#         input=raw,
-#         check=True,
-#         stdout=subprocess.PIPE,
-#     ).stdout
-#
-#
-# def pack(raw):
-#     """xz -9 -> base64, radbruten på 76 tecken."""
-#     compressed = xz(raw)
-#     encoded = base64.b64encode(compressed).decode("ascii")
-#     lines = [encoded[i:i + LINE_WIDTH] for i in range(0, len(encoded), LINE_WIDTH)]
-#     return "\n".join(lines)
-#
-#
-# def build(src_dir=None, git_ref=None, repo=None):
-#     # .format() kan inte användas på HEADER: den innehåller ${BUILD_FROM}
-#     parts = [HEADER.replace("__DEST__", DEST)]
-#     for rel in FILES:
-#         parts.append(
-#             "\n"
-#             + BLOCK.format(
-#                 rel=rel,
-#                 dest=DEST,
-#                 payload=pack(read(rel, src_dir=src_dir, git_ref=git_ref, repo=repo)),
-#             )
-#         )
-#     parts.append(FOOTER)
-#     return "".join(parts)
-#
-#
-# def check(path, src_dir=None, git_ref=None, repo=None):
-#     """Jämför varje befintligt block mot källfilen, byte för byte."""
-#     text = open(path, encoding="utf-8").read()
-#     blocks = dict(
-#         re.findall(
-#             r"RUN <<EOF base64 -d \| xz -d -T0 > " + re.escape(DEST) + r"/(\S+)\n(.*?)\nEOF\n",
-#             text,
-#             re.S,
-#         )
-#     )
-#
-#     ok = True
-#     for rel in FILES:
-#         if rel not in blocks:
-#             print(f"{rel:22} SAKNAS i {path}")
-#             ok = False
-#             continue
-#         actual = lzma.decompress(base64.b64decode(blocks[rel]))
-#         expected = read(rel, src_dir=src_dir, git_ref=git_ref, repo=repo)
-#         match = actual == expected
-#         ok = ok and match
-#         print(f"{rel:22} {'OK' if match else 'MISMATCH'}  {len(actual)}B")
-#     return ok
-#
-#
-# def main():
-#     parser = argparse.ArgumentParser(description=__doc__)
-#     parser.add_argument("--src-dir", help="mapp med källfiler (default: working tree)")
-#     parser.add_argument("--git-ref", help="git-ref att läsa filerna från, t.ex. c9a94ca")
-#     parser.add_argument("--repo", help="git-repot att köra git i (default: working tree)")
-#     parser.add_argument("--out", default="Dockerfile", help="fil att skriva")
-#     parser.add_argument("--check", action="store_true", help="verifiera istället för att skriva")
-#     args = parser.parse_args()
-#
-#     if args.check:
-#         sys.exit(0 if check(args.out, args.src_dir, args.git_ref, args.repo) else 1)
-#
-#     with open(args.out, "w", encoding="utf-8") as handle:
-#         handle.write(build(src_dir=args.src_dir, git_ref=args.git_ref, repo=args.repo))
-#     print(f"skrev {args.out} ({len(FILES)} filer)")
-#
-#
-# if __name__ == "__main__":
-#     main()
-#
-# Kör det med:
-#   python3 gen_dockerfile.py --git-ref c9a94ca   # skriv om Dockerfile
-#   python3 gen_dockerfile.py --check             # verifiera mot källfilerna
-#
-# xz CLI:t anropas via subprocess istället för lzma-modulen: liblzma ger en
-# annan bitström vid samma inställningar, så en blob packad i Python är inte
-# bit-identisk med en från CLI:t.
-# ============================================================================
-
 ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
 FROM ${BUILD_FROM}
 
-# xz behövs för att packa upp de inbäddade filerna
-RUN apk add --no-cache nodejs npm xz
+# gzip behövs för att packa upp de inbäddade filerna
+RUN apk add --no-cache nodejs npm
 
 WORKDIR /usr/src/app
 
@@ -192,108 +10,101 @@ WORKDIR /usr/src/app
 RUN mkdir -p /usr/src/app/public /usr/src/app/views
 
 # ---- package.json ----
-RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/package.json
-/Td6WFoAAATm1rRGBMBZggEhARwAAAAAAAAAALbuHIzgAIEAUV0APYKAFxwpjcmEhvjI2b+ecVMx
-iblySubP835BrYUQ8sceI3bkUQElXY/zxLgypcxPb3AWxlr2SpfSohUM+c3Fylr2tsxu5j6FxO6M
-qBhZfswJAAAAAKNevqnzawi0AAF1ggEAAAA4zCDrscRn+wIAAAAABFla
+RUN <<EOF base64 -d | zcat > /usr/src/app/package.json
+H4sIAAAAAAAC/1XJQQqAIBBG4b2nkFlGXaDbmP4LhRxzDIrw7g24cvm+9xlrKaAgB2QfIbTbT031
+YG7SqitKtNA6FEnmfkqFzJauG/Wd6OTsPG8IsXEdR0c33fxYfzTYggAAAA==
 EOF
 
 # ---- app.js ----
-RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/app.js
-/Td6WFoAAATm1rRGBMCCCYoZIQEcAAAAAAAAALWIxZrgDIkEel0AE51KZmSS9VkoYT8Ise/WDlhw
-UUNRSFCSLwXkzWKrL7UqXwkIehMMR55HTdwJFT2JlCcYX3+jz38HdjXBsmTYgWStCNjfXSCrLx6J
-GvRNB3IYN1kbGZTHdzWTxxCOGK5YVgQk6oYhf12f6rNtvqQmmkbnCigNEu8ugSn/UKG3bDe4tKmz
-ppCTv9g61mu4IN9OInzxucoWt5e7pTb/rQaZEmeLHwzzvgt7Lk4Sh2MG101CkvARdjAcbfl/5D7a
-Ms72MArDjjGO+av0Ln5CWj2XtsI1D/EPfeLHES2Pcortsgzw/JEPningjEq5/tcDnIbLW+FUHmDB
-9RIALwWtpdkUwjxpSs+4Zih2R66B0B3GDkuIP0qQKw3J446H+MyqSiL+NgtdOMIcOAYk9Q6X6SsC
-nAkNytTPwt1I5BBzmiRd/k7QUs8j/z0pPxNMmfgStjZvZ3pl8d7BBJFtPl+q2GtlCmu+0khFz1yH
-KWTHVL7d3mExvjFjXgUIMjD0vrL3Ti0m5ZKTNA9uuqFfBJKU/+wjQP+XkBV0JG0iKxX7jU7+MEI9
-wjCLgVWILuVJxC7Vq50wp3vRjMlFYZ32hriMjFlGH55FgYGwWAMhQjx7n6Vu7hTGqvD0GBNv3qme
-unA2o6o6YGMAh49pKOKuWUnuOWmhs+z6d6p08sDHdtGBqNSodFZ3I6dhmpDvlU/6VzNuM54k8ABY
-0ol4SlU1W2l9t/o6EHohb57/ZpwD3czldsI5MZVBjCF9D+5mMxYV/oGSGf67pHrP7sqdQDlj3tYB
-s2mWjqa4jHXzznDS9UpKb1j1uihO+9jsBndbt8qnXBzbL7UrawWfkBCoVZuDETtVKVddixyoKPBD
-CPWaA/HOSYgl9DmvOmWFPH+wWqgXVAmZOgmr1PFsOx+0WyZrcOA5TrGx1ldmwUo7uMJ8NQkZhxJx
-nseYh9KHrWzePto9qScF8XLDDRsKmSXh+otzUXNzWSMb2vdcSmXRapNPrP/OzjLhMhToLJfSsHOK
-beS33/83Gpd/vJ+o87BS7VpeyFGyBL6XIPB9Wi9YP4uM6KRgnlHTdCO4exY6D5ps+7SmrmbNi/F2
-jUPveF91ZhPsrtPR9TwMEbvhoQwgSBzNGsXNdXOu0lnquO8V549V6w1zNRVE9Y2NApTc2zK2Y5n8
-uxP7syfwCjmxx4e3CoJuw5fx3i/54FxRF2BmOtrkNi/VRfnqHQAU7aLPYnMEZju9U4YZVJgNSeOJ
-UVXuht7Y6u3Xq7p0iZzTFbDY+cWr78kLPmCN+eDZ2MJb6DFyBZGjrQT3XWdorZOBlAl5oVmYhQdY
-XuExxAWzK53L5YLjsulC3T/mp8O/R32OM0/QzYX+buhz8LHEc9I2hIHkbItE6c9MkX9vQ16SF/+d
-GR/wdFVn5fC4DmoJ+JxBY6L5p1wWkIehXOnpj0LqBfsN1tWIB2Ud48x9xxgqu7CEDHLYMeIxHwk+
-CQZrgvCtZ5ylbuBwO9ZAR8x6fstwx/30x4Xq92Rz4sLVeSpilASnNltiHEoAAAAAnkz/9h/wJOEA
-AZ4JihkAAD8POnixxGf7AgAAAAAEWVo=
+RUN <<EOF base64 -d | zcat > /usr/src/app/app.js
+H4sIAAAAAAAC/51W4W7bNhD+n6eggaGkMIfOgBVoHWRD0cRbuyAZlq77MQwuI51jupKokpQTL/XP
+vcV+dq+wF8ib7El2J0q27Dr2ZvuHJB7v+N13H4/kpQPmvNWx58cHscmdZ3BXWHCOnTALH0ptQfB6
+iEfNnNGKedSyFMqP2zb6XlpVUaCxDidwuB7PTK5i8xas0ybHGa+vLi9koawDccDwN3LSgkoGOoWr
+WR6HQfpReDkxOhfDYaJtrjLoMp6bBIaZScoUHMfvEP4QEu2NpYFCxe/VDciJMzmPuotwvPSjZ7z6
+jA4iOQ2AFjBfXl4MXn03HLw6P0OQddgh2kb6JsRqEj09G7z4+fzNcHB5fnr2E07eDDS4DkyagOVL
+OhrvsB5631eQ/Bgy6DM+dYeJsu95wD0yub/Sv6Phq6/DiCuLwlgPyRDuPOSUguuzX7mcqSyl9OWs
+fhaz6jFx9QMzoJexr+2xCxZ/58M34uW/HcwRaQoolYrQl1UShJJJKdew01TlsGZsVOaxp/KmRiXB
+R0RNZnZWv9EvkBC4OVVeYWh1qzTJThbWZNrBUg9iI7OtSkXduqzIb7PCbuBdGmrJcIkmopw2BZJT
+lZawB1h+C2lsMqhoXoc7Z7Hy8ZgJsDZqkfTfuN+Kk799+JS+N1kGOfM6Tdn3Lw7PqokdRqYJQ8NI
+p2z08Ldlynt2jS8TJXkN7WCOxS0K6cALPtVwS2rZnGKwRpjUigOucKNzIHHBpGojZMauJOomUYlS
+3LNUZ9qj9p8eZdeczSnQYirvXRvjsY2pAgM1js4rr2Oxu0MsvXuJdliBqAWD9yYfSrCzvQIH141R
+Q+/YK+pKN+tlOu9NXQj/GXlbgxbldarjlucNVaWHmMKGFdjEu9jJXcROvqmVF6Td3sFBCrYSeY5t
+THCNjzuMcl9v4X5o53TMYLFHM9EWI8p9tfnPMeK8QVQYR5BUoXspkbgNGjUkrywmcaotqbtW6Wpv
+ac+gKPLaJDMZTq0TdBrjPuTs40fWWTFG7Nv1nt5nKzOO19oX5JgvuEfbAdZBLMAQWbfaj6lHvJkV
+gO3aW9yjFRGrcUfVYUFx6xUk7lCPvANRAVI7jAcxEjzD9vrkCeuApIKTFqx3v+AqgkususxU0TjR
+hEg6PDREtJ4IhofHlutsWC9EYx1ks92FH19usR6JqN7ucWlRTj6cjH3WIqrOv1vjmu9okxSTdkHp
+xNOjI1wURSreDSBlU52w9OGTy1GVffbF/WKNucQvDCMz3EJ4S5i/ixb9boMwqZhbhbnpcCPwP4ar
+0gYVtnlD4e084XZpMdl5iDZ4NpyVFYPEGkXZh23+Q4kdgencQ0W4ouyxlbMvWYvlrRw7NYX/zfF9
+xfJFxVbFwDxcTCuejrcUpHHbtxaN/3KNz5m/tdrDGvUEclsB+D9//sGu8D6ikg7fqxKN7h0FwaLs
+qEK7z8tqHSEC6fP6MKOuDLl4dvT8OSI/ktUfKxWmEbUmBZmaG8GvwOJ9GoElhhUPfzG6ojJyrG4F
+/wJxBk28igwAAA==
 EOF
 
 # ---- welcome.txt ----
-RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/welcome.txt
-/Td6WFoAAATm1rRGBMDIAeIFIQEcAAAAAAAAAEg6+tngAuEAwF0AEBfsQakg1yfrkIG4eAkW5Xvp
-N/C6dZWqcK+sNRmUN7RkqUp3iGkVElUZpfGsgZTFUzgPoSSzYK0oOaw41xKervfNmCQNFEVig+tD
-kpVbY8mKgM1J+ijb3znDg8FfWd+uhe0aYf7oqRaqaFAHKHC04UH0f7Mp13s6TO4C/ane+Nx0tdQn
-8o1OgzzHp4MItnRHfrcrwsSxrUN60Ohyy1eiCk2dJHH8u1p9qvL9dmHGL6l4KMxb0VfqTbBeapkF
-7B0fAODne1gqBhioAAHkAeIFAACh710JscRn+wIAAAAABFla
+RUN <<EOF base64 -d | zcat > /usr/src/app/welcome.txt
+H4sIAAAAAAAC/42RSw7DIAxE95xidk2lSr5NVpacg/jwHYMDpClVMRKDYcznwQzZhsJQ61agjNqE
+EX7anJFyDFE6dR0Lqlc0ncIt2qyU5meGiYfhaLrlaOVkB3s4PQpKtTq2doHNnpkYEbvCCjVhR5Nx
+lMdxTdaBa57psVRWn2CrlXD3L1hvmh77u1I+a3kRnR5QJqD2D8rkmcdBBReK6OhwwTo9jZdUOQF2
+ckntuIEdLnR2V2ib3ZmerqjjX3jF/PWJs7wBHzvn6OICAAA=
 EOF
 
 # ---- monaco_config.json ----
-RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/monaco_config.json
-/Td6WFoAAATm1rRGBMDXApAFIQEcAAAAAAAAAHfBZ5zgAo8BT10APYKAGRubGMiGhU+Tbsdn5Yg+
-eh1e0TOFmgdvoXuTOohKBHidagITwyNntKniWM/r/SlVksTAHiY+AYIL1/avzl3fJ3OSPm/55Uu8
-tydzP0xDU1IiC4ZB6cDkVdhIxdsVDeIm/OLDixBsMtSMu0RyJtZ/GjHjHUbnvAuiMxoWAVuJaFI4
-PYzwHF0rEBEDJPIgMED7H9AzbS5c6HsI+PTKy4TgZtSng5WtuRSOY5rZGHCiauQbBwtexP/fN+kj
-SCKq00XTJTdKQlKoHzBGAPFgQa4ctytvUKlkdYZ0rdHHUuNT54rIMSV2A9zmkLu8bYKDnedBZhq3
-3SoNIF4xI0Y0mDueqN2UIaXsFsy7eyipxy2hlwL2SUX2MEmcZaA93UoIrEP8622skwLY5rM+vvyK
-oY4uEnxqKk86dIXDyJSrHPRoePxH3YkF7fzfAOrdLAAAAFfplc/a4c4pAAHzApAFAABFzxiRscRn
-+wIAAAAABFla
+RUN <<EOF base64 -d | zcat > /usr/src/app/monaco_config.json
+H4sIAAAAAAAC/21RMY7CMBDseUWUhoaTDnTVdUckKkSTgnoTL8TC9qL1GgSIv5/jBC6WzuXMzszu
++DEr4iulQ4vld1Fe/IcCPpWLAT+Qk1rfe2r5NcE2YLW59YL5RjMUFSmcL4p5Bb4Fpd9ARc6TAd9T
+FFgjFzu8RsKSI3+GFqdJW30ECYw+GgsHHCmrnbZwjuAjAQlEB41BFcEDGI+JeI4CCEIWRLdbuFGQ
+3M23TMas8UZObcHHUIcvl3HkSqz2nBJLcq8NTRzcBdsg+5xgdAp532nB4aTIejTYiv4bEmjGIlcj
+0gb2xOtoe9LumESWSLoy4+uEVcAoP30NyTOLH1R1OmswmlzLFOJyqn6v808XDXDe7QU5lgemz+m0
+UvjKSmxHrO/xtzI+6/8MSg2bTEyF+j6XnxOnhiR+VEIH/ez5C1Qv46qQAgAA
 EOF
 
 # ---- public/script.js ----
-RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/public/script.js
-/Td6WFoAAATm1rRGBMDwCuogIQEcAAAAAAAAAAKKe1fgEGkFaF0AMZvKGcY2FymtHk6TpseBuW+e
-ZZGRpZSgAeKukgAI6E9s2ddV0u+RNnlFgDRzMN1iPGkCAbe01IOV/9DOkfBWOQTdSsh1D0vycrs9
-fz10c0QKxEFVMTI1rr85Ya68lGmN+rY84jVRCFZ8VIcW2Synb4Nb6C1kqVFo5qU7LnyO9NygHsZc
-oPv+V+u/YcoffAqb/W10ffPHOXtiAfrj4V6BGk6bzuLoT+rszTuXGXoXFxH44C5s/tN5U1bysI4E
-yJ1A2tKhmd3q9/eJXP8K44R5dEpB2fGchF2wJip1c/T2a8oGQST/Qi4DKmJNzUnWsfVowI+DAw32
-5HxT//66E+MDYUgrYywPnob1BrSjkKwfJc8QYCnNAUkcPAVF5YoWSnwLzx/bQwREHjBWJhsuE4Dm
-F6tG/8sK4lNyxSAu669tifrbISESQX+RUB+p3HG7tOH5W1j/+CAk5kZbQjBtVR0ZsTj1HbP2V8Xc
-J5elwg6ja5IoY4TzVZ4ONlmriZlTylIVTmI8M0OfIX4JVWKDxkZOfp+4JCtZ4aGF9FSM3bSRG+wq
-bIjY4/OxEyO5jjFGHZUj14semnykW1FzVTtctt3q2K1Ri9jinUa1secDgcGQCEgBgUao3X+QbnAU
-vtIWJteEEWMsHuoqJTDP/az/tIUfNQRbo+8lPgbkkeQzvWwEqcTnoYFPPpKtN6pPsMKq+CDV/zQd
-uDfffl3Ij0+880+2K589ihy3miRvOGbf+tNLafYF+dxHmepRyriPs7qf4pgWP+riBVTyBfPNPKXO
-2YbKAVliNeg9BEUmHCgbj/V9r4CJOCXZWr68VorDXMvhm3SL+vYpNoZfS25KvzwW2tJehkXXNNkD
-C3Z6NbW9Yy/DV8rd1olyNYKdiazoz7PjcnGWYW2kxd7V2Jrc4LhCXjxWEC3e6DMmqSfev3q1O+Or
-GHQAMGlz0dN45+vTzcVDw9Lx7miD+g9zcJMEj8cdqw5tgmhbUsS7Q280sMa6mvIg/UYz9V0pbquS
-4tK06hwIOmiylEqEE4WevUKY5NiMnu6g/uRzHbAt3xPMWMxS0iiCc3ZBmRaRBAeur1M8SqeKVTfY
-znhh6U7hV7Gmg3KIAOF7+RUP/+VLv6KdDl+8kte3IaLNIxk3fUyly9Jd9IfnYJyYs2I1E3V1RGrx
-PKwIYZ+hLW3IAWUW5MWZCKWtpdIFo2/hejLHcnITOVwN55Z0AXGS0dBN/RPYQ7nN5lSbnZ/fQvRd
-RmCIEnt6XJ95zSHrFBIGlpl80gA2TDvsJ8W3fuDxTgbzN2OCRXYeYncGyUaM09yiQ6Q5+/NV0MPc
-yK4+eXOSJdF0sEK5kPpLDkuFzdjHQVjhGEsNwQ36fQULdyhu92L0dMk91R/AGIHeWOIjkaDaOV7H
-StTXh4rytxSs9hvh9hap6jKZ9aN5NzyKijdZta0jlv4FAZ/ZkWz+++Mf1NQUKEjZNYkLjv6+3wKT
-xLoXkh6SYUjMlLCb1w4OavyfvtnwBfONPcK+jEyv9iTetdIlxEU0/xBiXjpz3t+RBwx+YrApX3pT
-mbUYvEKJtjrmMh75xGiWDwkXdeIIuOH87z6ivvxheJt/9uVwM2z/6R4/aLM3I8wfXrF8X5jzAW1m
-vuB64Ydn2ZduUioKKAQp2Fur66xP6G4iInNwcrsQekU0DqcteY9AJP88gPevSgi33om+bgxQtrQm
-83q4cFajq5JcgvrZT5u4aITruWIAZvv1NWCOABHwYQqu9Z46GEAUs7Gc5F9QnJWqmI8BYhbNjqxj
-9wqS3m3nMSqIWkTj8SvyNuPWBu2PwLidTnKM7RzGb1MT31euRWt7wR7F8Hd0G8iOuBQdHvQAAADW
-2130skMLgAABjAvqIAAA09Z4XLHEZ/sCAAAAAARZWg==
+RUN <<EOF base64 -d | zcat > /usr/src/app/public/script.js
+H4sIAAAAAAAC/8VXzW7jNhC+5ylYxYAo1JF92L144xRdI4tuN9kUSNDL7qJmJcpWliJVkkpieH1o
+0TfoA/TSN+kL9RE6Q8m2/pwULdrqYJnkcPjNzDfDUaSkseQ8Tq3SX+Y5mZL1EYGHu5kJkYUQQzcT
+FVpzaV+lgvdNKxFzkPe84ZGbT2VqJyQpZGRTJWmkZJIugko7Ppr/UKSah+UKXZOc2aWZkDXx74w/
+IX6mJIuUTzab4EV7F30HQqMSZPUKM5ZK/8OQ0IBMz2oH4WOXqQlLOTCx1FyNw0hzZjmNVVRkYEm4
+4PZccPz7cvU6pn4p5gfDlk58wrDC31ipA26dHrI4nqksYzKmFYw3fHWp4nBmtZhlMflE9vMzFXN8
+X/dbtdNt2B3HwNDWwb1AwD6UNdRbqox7NZGt+KaKoVmq+2vLbGFqkbT8wQ5JpITSQ2JsGn1c1cM6
+oN4xwin3eUForMqp1QUfEvwNQlTgtARhZACFU+VVKkEeDq3bkSaEfrY9p6M95oKt6LPxeByECYv5
+VWHpcxg0DWF5OmNC1KzgMs5VKsGSmFkGhhRRxI15JRu2hOyWPdCm0wsNenbbm+5d5ZAb3jdX1zde
+cwVIYoFQN6UAy3ORRgyBjG6Nki1hRDQhX19fvQXn6VQu0mRFcTJoylWYJ3vwzXWuNaYw5Y46JVF2
+EaXzVxwMGax5qLnJoQzwG4gJ+fSJcDgWRXC8mQ+Jd5wkz+Dxqgge5MuWWTU/Y1LXXRq5emOZBlnI
+RFzGI0sq7oPuwFZRo+CvdCRSYwFAWSYmWw0bSAznmQMp36hOcB7KNiebCYL8aix7W752tIHt7RCD
+ZQPECQcNqH+cgC8uYOgHIc9yu2pnp5MFK3NgE/VP4/SORIIZM/Vw4WShVZGfpJZnBCGc3DMtgQzE
+EQ+QESUjoNHHqbcr3/vcfu+jR9/7gXf2x6+//Ei+uro8Px3BEWd+G7jzSeJsMvDW5yxa0qS/2pRG
+4jUxH6y7PtmMButkMwdG5YJFnI7ejz4fLYbEH/kt2zv2z5+0P5WJ+mvG+4N1vqlM/4kgpNL0eU95
+7HEF6vhPHVEqY5Axdxw0NskGaMh0CqkSkC+gdDihE8ToEbxu/4lbB+tS3WbvVvTACabY1EMn9vpZ
+KBa728ZHIys///yEnw/VjK2yWs2QLOPdmvGor3HLk+7uFhW4+eNaUcldPalq9eNdRGi4/ZaJgu/E
+XxyuPi6EJO+WmlLXTWohmlWhccZ3JfHSe2klSOUa7lMvTg37XnBEnzBheraErWjDVs0zdcdnSAba
+YFJn9/xdmwgf5oHrXXo39xRCvEumBK0JDdx2lvoh1MEcsIOh6kLdcz1jptOxlJsFk4tLtu9G64+f
+r/wJ/Nilkj6EeMUyARPuhcPG6BY6Sf+W3TET6TS3/rCrDi9gFDKluqV1CtwLhtChwAh/YWAfLB4t
+GCYL/Md16P4ac03iN41r9p3AIOj7uLgAYwu24LROr0W1SKHtrLzxDtR/wMuydtoTiTVzvWkttepp
+9WQ6eCXe78oON3Sdyr+aIX0HPpU0GCjqnUKjpOTi7DWw5/ffhMCLkunTUTXt/d8Z9TcjX7LysQ69
+avwPhNj1zm1HB/ARZQsta2lbZl0VJwhEC08Zxnqeo+LeW6ovhEGbJHp18EaV/L4kLaBwHXDOtDlE
+oTbjihyqFr/K0Q+G7lS1byMCrXe0dH3xoe+pfZvsuTb5apEKC6AQ0olZScseQvKGSYJ5SAyAZKHX
+7ZS7cLeubwDah/fo6CCOazxEwwcnnnO/BAJ2T+mmNBLEpTSy8i1U40kn8YbVB8c2/JjhmVkcyu4a
+JpBCm8fjJBmPe/Jmx9YjKIR/AupoIUdqEAAA
 EOF
 
 # ---- views/index.ejs ----
-RUN <<EOF base64 -d | xz -d -T0 > /usr/src/app/views/index.ejs
-/Td6WFoAAATm1rRGBMDpBqsPIQEcAAAAAAAAAFtwh7vgB6oDYV0AHghFBtDvqCgXWdmp9eqnJT7F
-bAPcQK4xKPr+8IwT4KYLAzf5QltbreNjKsl3Feh19oVRPE/sfTzpeJpC3MTtF74xG36LMNr7aZt5
-85scpPTWK1Tf6WsvTs9fvUOP8KxB9L5tD+UK75OpmMidXsh9vjTBU39wI2XxPursQdlftiapn7D0
-0aKNShwv4WHAGQ+2nrZcbAms1AzjLwOKVp4xgeSo+hUbw9h1ybhcQZpFiG3hj9r5nDYf2tuJK2iR
-TYkxs9dLt9q2lnCAezdxWKjDYy1GiEXAlZh9ut7UJmVS3QuLSnYLQuxgR2hjo1PcKLM/eqeGr2Vt
-CnMH5E0M0n1nztryyY4yv++mUai58LqgDFgF1U8E15jccoGu07lpd+SkgdiKI9d30u2tKuxoFAuw
-/qrEA7RMFdZCN2IkeOosMX8DMOjpKHANtEGQFxcYx8uV9+hxJN6MgX2g44ASvhgVA6yt7O6H6mvo
-BGCfFAzUvLzB6J8jzzx95Ip0DKF3bBYIEaqamUn+7mgMt5RY7nSSKcBXAp8YKi/t/NnUSM0bwBt7
-T/A9MxjrruBTSHMw4ezrBS5URpde2R2NTMx7QIKkZGQoZ9C+O1snph9naTboQ27cjUSy8capvIuc
-6LeUcpnOo9nFPhA9ENySOP2IqK1aIwm4decC4D8Z/eMrvHhPRoEmUpHcU5llsGTfc1AYGlQBig+l
-QTMlvOhpe2+sVy1qANHq40UaCLgG+OHpK7oDyO/r4isxA1r/P80VcHFNpm+1yvLlrXu8cbrvOkyD
-B5ot5OCS4uIeDQEA4DrXamjJEoaE39HqobJ5TFOQwWTgw3jaSsvCIcPhJ5hPdvlMy/qHyL6Vh5wM
-M4DeD8Gf6cvpsT5LXNMXkC+s0t7MlXa1SjWO07KrV+6qUA6RnO3yux9EI7D721IFMOBrfvdfQ7Iz
-9t23YQeVTvk1cY0u52OLfmj6oKEeWMW8o0LeXtOcmW1ulB9tYaAz436zHa7qdDgxsG2M1SouaQhU
-NKHzWWPH7ZS5S9gjXGm5nqev1CoopmbXN40s2DGviFmmCs/eT0GqPoxO26NLP5eojSJTomvfhacP
-bCBvQ2ZTRua1cNrHXxv1cvmxpUpP7jBClI1sAlHvjR7RydmHc1TMblLVgkEixdSNNAAAAAB/OfwX
-5FDBYAABhQerDwAAn1Q+rrHEZ/sCAAAAAARZWg==
+RUN <<EOF base64 -d | zcat > /usr/src/app/views/index.ejs
+H4sIAAAAAAAC/41VzY7bNhC+71NMuF3APtBa24tk45UFtGlyatACCQL0SFEji7v8UUnKayfoM/Tc
+nvsQvfdN8gJ5hZCS5f/8SBAkjWY433zzcZQ++fnXF29//+0lVF7J7CKNN5BML+bELQkUzDOaO+or
+VDgnBbMPJHohK7ILCEeq0DPgFbMO/Zw0vqS3ZPPJCy8xe20044a+LIQ3Fpbp1RxUa3qH1gmj4SpL
+k861C5NCP0BlsZyT3BjvvGV1wp1Ltm8jJfQoWAhYlAGoX0t0FaLvM7eW7jkeuSnW8AFyxh8W1jS6
+mMHlGON5B9xIY8N7cRPPO/hzG3WJHeQPUKFYVH4Gt9fL6i6sZgsMIeN6Bc5IUcDldDo9iCyFxF+E
+8yFWsRU9jDdLtKU0j3Q9A9Z4sx85qo3QHmNS3lgXkW0sB14yrE1jKTUVHtVRbYEi7WpmUftdfZzz
+HjrtbS3s0mhPnXiPM7gePbeovpZpVkX0x1xO2KSY4EEc414skUYiTryf3pTPbuGJULWxnu2BfKxC
+joMPe5w6tsQ3nvnGhQUPQN+2oBWzC6Gp7age7xWSJhs9pEkn3DQKYiOVaAkVccmcm5OaTkDldNoz
+lRvvjYJ8QaP0oaClxBXcN86Lch14DJ0JQHL0j4gamBQL3fLkKMfYNbITYVqN+yzVU1D0mnzf1qjG
+e2sUYrl766ReMw2iCLtgyw8JUdF85Jk3oZad709ekx5Q7jWEizrV3RrO0TmoV/SGgNFcCv4wJx3O
+H+t6FONfhdYOhmFECMdyiUX2JkiOpUmX5nzu8+lM48OeRyp0aUAhnZzNKQ0rXhhdikXImn385+9P
+//11mi1NthR13UabXVz03PUAYuNYSGlDPxtRkEOGey9rHmER0BzVcrCOpKqgz49ctm6R626KvI0D
+juxkNganmJTgceXbwkn27v9/5T0EGYVNMxqN9ir5yrqx16eiOGM6RT39EurzIFXjMTD1mtX1bE92
+YUzFQfPKyCLKPdlI71vo+wm5pWQ3aL6npIM2t4+bwc+tqD04y+fk/o8G7Trpbu0v477bGq1PdhrQ
+7b0kCg3tt5y75y97ZT8MCsMbFbgZjmwQ4nowGMI8g52ihRZ+kF7RMP6irMNuHw7vdosFcbdjKug4
+/ps/A8b6c7urBwAA
 EOF
 
 RUN npm install --omit=dev && npm cache clean --force
