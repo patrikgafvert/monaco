@@ -1,6 +1,6 @@
 name: "New Monaco Editor"
 description: "Monaco Editor from Microsoft"
-version: 1.0.7
+version: 1.0.8
 slug: new_monaco_editor
 arch:
   - aarch64
